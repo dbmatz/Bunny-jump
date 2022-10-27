@@ -12,6 +12,9 @@ export default class Game extends Phaser.Scene
     /** @type {Phaser.Types.Input.Keyboard.CursorKeys} */
     cursors
 
+    /** @type {Phaser.Physics.Arcade.Group} */
+    carrots
+
     constructor()
     {
         super('game');
@@ -58,6 +61,9 @@ export default class Game extends Phaser.Scene
         this.cameras.main.startFollow(this.player)
 
         this.cameras.main.setDeadzone(this.scale.width * 1.5)
+
+        const carrot = new Carrot(this, 240, 320, 'carrot')
+        this.add.existing(carrot)
     }
 
     update(t, dt){
