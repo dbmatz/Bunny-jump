@@ -1,0 +1,154 @@
+import Phaser from "../lib/phaser.js";
+import Carrot from "../game/Carrot.js";
+
+export default class Game extends Phaser.Scene
+{
+    /** @type {Phaser.Physics.Arcade.StaticGroup} */
+    plataforms
+
+    /** @type {Phaser.Physics.Arcade.Sprite} */
+    player
+
+    /** @type {Phaser.Types.Input.Keyboard.CursorKeys} */
+    cursors
+
+    /** @type {Phaser.Physics.Arcade.Group} */
+    carrots
+
+    constructor()
+    {
+        super('game');
+    }
+
+    preload()
+    {
+        this.load.image('background', './assets/bg_layer1.png');
+        this.load.image('plataform', './assets/ground_grass.png');
+        this.load.image('bunny-stand', './assets/bunny1_stand.png');
+        this.load.image('carrot', './assets/carrot.png')
+
+        this.cursors = this.input.keyboard.createCursorKeys()
+    }
+
+    create()
+    {
+        this.add.image(240, 320, 'background')
+            .setScrollFactor(1, 0)
+
+        this.plataforms = this.physics.add.staticGroup()
+        for(let i = 0 ; i < 5 ; i++){
+            const x = Phaser.Math.Between(80, 400);
+            const y = 150 * i;
+
+            /** @type {Phaser.Physics.Arcade.Sprite} */
+            const plataform = this.plataforms.create(x, y, 'plataform');
+            plataform.scale = 0.5;
+
+            /** @type {Phaser.Physics.Arcade.StaticBody} */
+            const body = plataform.body;
+            body.updateFromGameObject();
+        }
+
+        this.player = this.physics.add.sprite(240, 320, 'bunny-stand')
+        .setScale(0.5);
+
+        this.physics.add.collider(this.plataforms, this.player)
+
+        this.player.body.checkCollision.up = false
+        this.player.body.checkCollision.left = false
+        this.player.body.checkCollision.right = false
+
+        this.cameras.main.startFollow(this.player)
+
+        this.cameras.main.setDeadzone(this.scale.width * 1.5)
+
+        this.carrots = this.physics.add.group({
+            classType: Carrot
+        })
+        this.carrots.get(240,320, 'carrot')
+        this.physics.add.collider(this.plataforms, this.carrots)
+
+        this.physics.add.overlap(
+            this.player,
+            this.carrots,
+            this.handleCollectCarrot, 
+            undefined,
+            this
+        )
+    }
+
+    update(t, dt){
+        
+        this.plataforms.children.iterate(child => {
+            /** @type {Phaser.Physics.Arcade.Sprite} */
+            const plataform = child
+            
+            const scrollY = this.cameras.main.scrollY
+            if (plataform.y >= scrollY + 700)
+            {
+            plataform.y = scrollY - Phaser.Math.Between(50, 100)
+            plataform.body.updateFromGameObject()
+            this.addCarrotAbove(plataform)
+            }
+            })
+
+        const touchingDown = this.player.body.touching.down
+
+        if(touchingDown){
+            this.player.setVelocityY(-300)
+        }
+
+        if(this.cursors.left.isDown && !touchingDown){
+            this.player.setAccelerationX(-200)
+        }else if(this.cursors.right.isDown && !touchingDown){
+            this.player.setAccelerationX(200)
+        }else{
+            this.player.setVelocityX(0)
+        }
+
+        this.horizontalWrap(this.player)
+    }
+
+        /**
+     * @param {Phaser.GameObjects.Sprite} sprite
+     */
+
+        horizontalWrap(sprite){
+            const halfWidth = sprite.displayWidth * 0.5
+            const gameWidth = this.scale.width
+            if(sprite.x < -halfWidth){
+                sprite.x = gameWidth + halfWidth
+            }else if(sprite.x > gameWidth + halfWidth){
+                sprite.x = -halfWidth
+            }
+        }
+
+            /**
+             * @param {Phaser.GameObjects.Sprite} sprite
+             */
+            addCarrotAbove(sprite){
+                const y = sprite.y - sprite.displayHeight
+        
+                /** @type {Phaser.Physics.Arcade.Sprite} */
+                const carrot = this.carrots.get(sprite.x, y, 'carrot')
+                carrot.setActive(true)
+                carrot.setVisible(true)
+                this.add.existing(carrot)
+                carrot.body.setSize(carrot.width, carrot.height)
+                this.physics.world.enable(carrot)
+                return carrot
+            }
+
+            /**
+             * @param {Phaser.Physics.Arcade.Sprite} player
+             * @param {Carrot} carrot
+             */
+            handleCollectCarrot(player, carrot)
+            {
+            this.carrots.killAndHide(carrot)
+            this.physics.world.disableBody(carrot.body)
+            }
+
+        
+}
+
